@@ -1,0 +1,99 @@
+---
+title: "CS2"
+author: "Zack Bunn"
+date: "11/26/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+#Case Study of Attrition at Frito Lay
+
+#The reason for this study is to analyze Attrition within Frito Lay and metrics that influence it. The goal will be to develop a method to prevent attrition and maintain employee satisfaction. This dataset was provided by Frito Lay themselves and contains several employee profiles. I hope that the finding of this review will provide ample support for Frito and their Leaders!
+
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(maps)
+library(class)
+library(caret)
+library(e1071)
+library(knitr)
+library(ggthemes)
+library(readxl)
+library(scales)
+library(plotly)
+library(glue)
+library(ggpubr)
+library(hrbrthemes)
+library(viridis)
+library(GGally)
+library(RColorBrewer)
+
+
+#read in the data
+fritoEmp <- read.csv ("/Users/zrb65/OneDrive/Documents/SMU Data/DS_6306/LS14 and 15/CaseStudy2-data.csv",  header= TRUE)
+fritoEmpA <- read.csv ("/Users/zrb65/OneDrive/Documents/SMU Data/DS_6306/LS14 and 15/CaseStudy2CompSet No Attrition.csv",  header= TRUE)
+fritoEmpS <- read_excel("~/SMU Data/DS_6306/LS14 and 15/CaseStudy2CompSet No Salary.xlsx")
+View(fritoEmp)
+
+mergeFrito = full_join(fritoEmp,fritoEmpS, by.x = ("ID"), all.x = TRUE, all.y = FALSE)
+FullFrito = full_join(mergeFrito,fritoEmpA, by.x = ("ID"), all.x = TRUE, all.y = FALSE)
+
+
+#Percentage of Attrition
+chart <- fritoEmp %>%  ggplot(aes(x=Attrition, fill=Attrition)) +  geom_bar(aes(y = (..count..)/sum(..count..))) + scale_y_continuous(labels=percent) + xlab("Attrition") + ylab("Employees") + ggtitle("Employees with Attrition") + theme_solarized()
+
+#Attrition based on Income
+chart1 <- fritoEmp %>% ggplot(aes(fill = Attrition, x = MonthlyIncome)) + geom_histogram() + scale_fill_brewer(palette = "Paired") + ggtitle("Influence of Monthly Income on Attrition") + ylab("Employees") + theme_solarized()
+
+#Attrition based on Age
+chart2 <- fritoEmp %>% ggplot(aes(fill = Attrition, x = Age)) + geom_histogram() + ggtitle("Attrition by Age") + ylab("Employees") + theme_solarized()
+
+#Attrition based on Overtime
+chart3 <- fritoEmp %>% ggplot(aes(x = OverTime, y = ..prop.., group = Attrition)) + geom_point(stat="count") + ggtitle("Working Overtime's Influence on Attrition") + xlab("Overtime") + ylab("Percentage of Attrition") + facet_wrap(~Attrition) + theme_solarized()
+
+#Attrition based on WorkLife Balance and Years with Current Manager
+chart4 <- fritoEmp %>% ggplot(aes(x= WorkLifeBalance, y=YearsWithCurrManager, group = WorkLifeBalance, fill = WorkLifeBalance)) + geom_violin() + facet_wrap(~Attrition) + ggtitle("Work/Life balance and Years with current manager's influence on Attrition ") + theme_solarized()
+
+#Naive Bayes Test
+filterFrito <- fritoEmp %>% select(Attrition, Age, MonthlyIncome, JobLevel, OverTime, WorkLifeBalance, YearsWithCurrManager)
+set.seed(54)
+splitPerc = .70
+trainInd = sample(1:dim(filterFrito)[1],round(splitPerc * dim(filterFrito)[1]))
+
+#Second Method to create Train data, it proved to be less reliable and more random
+#trainInd = createDataPartition(filterFrito$Attrition, times = 1, p = 0.7, list = FALSE)
+
+train = filterFrito[trainInd,]
+test = filterFrito[-trainInd,]
+
+Nb = naiveBayes(Attrition ~., data = train)
+predictions <- predict(Nb, test)
+confusionMatrix(table(predictions, test$Attrition))
+
+#NaiveBayes second method
+#Nb2 = naiveBayes(train[,c(2,3,4,5,6,7)], train$Attrition)
+#confusionMatrix(table(predict(Nb2,test[,c(2,3,4,5,6,7)]),test$Attrition))
+
+#Knn Test
+#Knn = knn(train[,c(2,3,4,5,6,7)],test[,c(2,3,4,5,6,7)],train$Attrition, prob = TRUE, k = 9)
+#confusionMatrix(table(Knn,test$Attrition))
+
+#Using the Columns from the charts above, we conducted a Naive Bayes and Knn test to predict the Accuracy, Sensitivity, and Specificity. The most efficient model was the first Nb test which had 86% Accuracy, 93% Sensitivity, and 44% Specificity.
+
+#Linear Model
+LinearM <- lm(MonthlyIncome ~ YearsWithCurrManager + OverTime + JobLevel, data = train)
+sqrt(mean(LinearM$residuals^2))
+
+#write.csv(predictions, '/Users/zrb65/OneDrive/Documents/SMU Data/DS_6306/LS14 and 15/CaseStudy2-predictions.csv')
+
+#This Linear Model is used to predict an employees monthly income based years with their current manager their overtime status, and job level. With this the RMSE came out to be $1392.77 which beats the target of <$3000.
+
+#In concluding this study I would recommend looking into employees work life balance and finding which Managers fit with the best people and teams. Find which teams have Overtime employees compared to ones that don't and access if they need to work those long hours or if the same work can get done more efficiently without overworking.  
+
+```
